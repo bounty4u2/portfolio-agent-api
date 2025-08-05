@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Intelligence Report</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        /* Reset styles */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; }
+
+        /* Remove default styling */
+        img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        table { border-collapse: collapse !important; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+
+        /* Mobile styles */
+        @media screen and (max-width: 600px) {
+            .mobile-hide { display: none !important; }
+            .mobile-center { text-align: center !important; }
+            .container { padding: 0 !important; width: 100% !important; }
+            .content { padding: 10px !important; }
+            .metric-card { width: 100% !important; margin-bottom: 10px !important; }
+        }
+
+        /* Dark mode styles */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #1a1a1a !important; }
+            .email-container { background-color: #1a1a1a !important; }
+            .content-section { background-color: #2d2d2d !important; color: #ffffff !important; }
+            .metric-card { background-color: #3d3d3d !important; }
+            h1, h2, h3, p, td { color: #ffffff !important; }
+        }
+
+        /* General styles */
+        body {
+            background-color: #f4f4f4;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-container {
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #ffffff;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .header .date {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            margin-top: 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-on-track {
+            background-color: #27ae60;
+            color: #ffffff;
+        }
+
+        .status-off-track {
+            background-color: #e74c3c;
+            color: #ffffff;
+        }
+
+        .content-section {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .metrics-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            display: inline-block;
+            width: 48%;
+            margin: 1%;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+            vertical-align: top;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .positive {
+            color: #27ae60;
+        }
+
+        .negative {
+            color: #e74c3c;
+        }
+
+        .data-table {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .alert-box {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .insights-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .insight-item {
+            margin: 10px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .insight-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+
+        .footer {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .disclaimer {
+            background-color: #ecf0f1;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            transition: width 0.3s ease;
+        }
+
+        .allocation-chart {
+            margin: 20px 0;
+        }
+
+        .allocation-bar {
+            display: flex;
+            width: 100%;
+            height: 40px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .allocation-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <h1>Portfolio Intelligence Report</h1>
+                <div class="date">{{ report_date }}</div>
+                <div class="status-badge status-{{ status_class }}">
+                    {{ status_text }}
+                </div>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="content-section">
+                <h2 class="section-title">Executive Summary</h2>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">{{ portfolio_value }}</div>
+                        <div class="metric-label">Portfolio Value</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value {{ return_class }}">{{ total_return }}%</div>
+                        <div class="metric-label">Total Return</div>
+                    </div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">{{ health_score }}/100</div>
+                        <div class="metric-label">Health Score</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ risk_rating }}</div>
+                        <div class="metric-label">Risk Level</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Section -->
+            {% if alerts %}
+            <div class="content-section">
+                <h2 class="section-title">Important Alerts</h2>
+                {% for alert in alerts %}
+                <div class="alert-box alert-{{ alert.type }}">
+                    <strong>{{ alert.title }}</strong><br>
+                    {{ alert.message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Portfolio Performance -->
+            <div class="content-section">
+                <h2 class="section-title">Portfolio Performance</h2>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>Return</th>
+                            <th>vs Benchmark</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1 Week</td>
+                            <td class="{{ week_return_class }}">{{ week_return }}%</td>
+                            <td class="{{ week_vs_benchmark_class }}">{{ week_vs_benchmark }}%</td>
+                        </tr>
+                        <tr>
+                            <td>1 Month</td>
+                            <td class="{{ month_return_class }}">{{ month_return }}%</td>
+                            <td class="{{ month_vs_benchmark_class }}">{{ month_vs_benchmark }}%</td>
+                        </tr>
+                        <tr>
+                            <td>Year to Date</td>
+                            <td class="{{ ytd_return_class }}">{{ ytd_return }}%</td>
+                            <td class="{{ ytd_vs_benchmark_class }}">{{ ytd_vs_benchmark }}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top Holdings -->
+            <div class="content-section">
+                <h2 class="section-title">Top Holdings</h2>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Weight</th>
+                            <th>Value</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for holding in top_holdings %}
+                        <tr>
+                            <td><strong>{{ holding.ticker }}</strong></td>
+                            <td>{{ holding.weight }}%</td>
+                            <td>{{ holding.value }}</td>
+                            <td class="{{ holding.performance_class }}">{{ holding.performance }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Currency Exposure -->
+            <div class="content-section">
+                <h2 class="section-title">Currency Exposure</h2>
+                
+                <div class="allocation-chart">
+                    <div class="allocation-bar">
+                        {% for currency in currency_allocation %}
+                        <div class="allocation-segment" style="width: {{ currency.percentage }}%; background-color: {{ currency.color }};">
+                            {{ currency.code }} {{ currency.percentage }}%
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <p>Home currency bias: <strong>{{ home_currency_bias }}%</strong></p>
+                <p>Foreign exposure: <strong>{{ foreign_exposure }}%</strong></p>
+            </div>
+
+            <!-- Risk Analysis -->
+            <div class="content-section">
+                <h2 class="section-title">Risk Analysis</h2>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">{{ volatility }}%</div>
+                        <div class="metric-label">Annual Volatility</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ sharpe_ratio }}</div>
+                        <div class="metric-label">Sharpe Ratio</div>
+                    </div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value negative">{{ max_drawdown }}%</div>
+                        <div class="metric-label">Max Drawdown</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ value_at_risk }}</div>
+                        <div class="metric-label">Value at Risk (95%)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goal Progress -->
+            {% if goals %}
+            <div class="content-section">
+                <h2 class="section-title">Goal Progress</h2>
+                
+                {% for goal in goals %}
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 10px;">{{ goal.name }}</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ goal.progress }}%;"></div>
+                    </div>
+                    <p style="margin-top: 5px; font-size: 14px;">
+                        Progress: <strong>{{ goal.progress }}%</strong> | 
+                        Target: <strong>{{ goal.target }}</strong> | 
+                        Success Probability: <strong>{{ goal.probability }}%</strong>
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- AI Insights -->
+            {% if ai_insights %}
+            <div class="content-section">
+                <h2 class="section-title">AI-Powered Insights</h2>
+                
+                <div class="insights-section">
+                    <h3>Key Strengths</h3>
+                    {% for strength in ai_insights.strengths %}
+                    <div class="insight-item">{{ strength }}</div>
+                    {% endfor %}
+                    
+                    <h3 style="margin-top: 20px;">Areas for Improvement</h3>
+                    {% for improvement in ai_insights.improvements %}
+                    <div class="insight-item">{{ improvement }}</div>
+                    {% endfor %}
+                    
+                    <h3 style="margin-top: 20px;">Recommended Actions</h3>
+                    {% for action in ai_insights.actions %}
+                    <div class="insight-item">{{ action }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Rebalancing Suggestions -->
+            {% if rebalancing_needed %}
+            <div class="content-section">
+                <h2 class="section-title">Rebalancing Recommendations</h2>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Asset/Category</th>
+                            <th>Current</th>
+                            <th>Target</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for suggestion in rebalancing_suggestions %}
+                        <tr>
+                            <td><strong>{{ suggestion.action }}</strong></td>
+                            <td>{{ suggestion.asset }}</td>
+                            <td>{{ suggestion.current }}%</td>
+                            <td>{{ suggestion.target }}%</td>
+                            <td>{{ suggestion.amount }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Tax Optimization -->
+            {% if tax_opportunities %}
+            <div class="content-section">
+                <h2 class="section-title">Tax Optimization Opportunities</h2>
+                
+                <div class="alert-box alert-info">
+                    Potential tax savings identified: <strong>{{ total_tax_savings }}</strong>
+                </div>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Position</th>
+                            <th>Loss</th>
+                            <th>Tax Benefit</th>
+                            <th>Replacement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for opportunity in tax_opportunities %}
+                        <tr>
+                            <td>{{ opportunity.ticker }}</td>
+                            <td class="negative">{{ opportunity.loss }}</td>
+                            <td>{{ opportunity.benefit }}</td>
+                            <td>{{ opportunity.replacement }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Market Regime -->
+            <div class="content-section">
+                <h2 class="section-title">Market Analysis</h2>
+                
+                <div class="alert-box alert-info">
+                    <strong>Current Market Regime:</strong> {{ market_regime }}<br>
+                    <strong>Confidence:</strong> {{ regime_confidence }}%
+                </div>
+                
+                <h3>Market Indicators</h3>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    {% for indicator in market_indicators %}
+                    <li>{{ indicator }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="content-section" style="text-align: center;">
+                <a href="{{ dashboard_url }}" class="button">View Full Dashboard</a>
+                
+                <p style="margin-top: 20px; font-size: 14px; color: #7f8c8d;">
+                    Questions about your report? Reply to this email for support.
+                </p>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="content-section">
+                <div class="disclaimer">
+                    <strong>Important Disclaimer:</strong><br>
+                    {{ disclaimer_text }}
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>© 2024 Portfolio Intelligence. All rights reserved.</p>
+                <p style="margin-top: 10px;">
+                    This report was generated for {{ customer_email }}<br>
+                    <a href="{{ unsubscribe_url }}">Unsubscribe</a> | 
+                    <a href="{{ preferences_url }}">Update Preferences</a>
+                </p>
+                <p style="margin-top: 20px; font-size: 10px; opacity: 0.7;">
+                    Report ID: {{ report_id }} | Generated: {{ timestamp }}
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
