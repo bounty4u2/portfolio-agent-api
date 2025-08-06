@@ -1,4 +1,4 @@
-# Core Flask dependencies - Using compatible version
+# Core Flask dependencies
 Flask==2.3.2
 flask-cors==4.0.0
 
@@ -15,8 +15,9 @@ seaborn==0.12.2
 # AI and ML
 anthropic==0.7.0
 
-# Email (removed secure-smtplib as it's not needed)
-# Using built-in smtplib instead
+# Database - Using compatible versions
+SQLAlchemy==1.4.46
+psycopg2-binary==2.9.9
 
 # Utilities
 python-dotenv==1.0.0
