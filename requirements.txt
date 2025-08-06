@@ -1,16 +1,12 @@
-# Core Flask dependencies
-Flask==2.3.3
-flask==2.3.2
+# Core Flask dependencies - Using compatible version
+Flask==2.3.2
 flask-cors==4.0.0
 
 # Data analysis and finance
 yfinance==0.2.28
 pandas==2.1.1
-pandas==2.0.3
 numpy==1.25.2
-numpy==1.24.3
 scipy==1.11.3
-scipy==1.11.1
 
 # Visualization (for charts in analysis)
 matplotlib==3.7.2
@@ -19,16 +15,24 @@ seaborn==0.12.2
 # AI and ML
 anthropic==0.7.0
 
-# Email
-secure-smtplib==0.1.1
+# Email (removed secure-smtplib as it's not needed)
+# Using built-in smtplib instead
 
 # Utilities
 python-dotenv==1.0.0
 gunicorn==21.2.0
 Pillow==10.0.0
+requests==2.31.0
 
 # Date handling
 python-dateutil==2.8.2
 
 # For production deployment
 gevent==23.9.1
+
+# Additional dependencies that might be needed
+Werkzeug==2.3.7
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+click==8.1.7
