@@ -10,6 +10,8 @@ import logging
 from datetime import datetime
 from typing import Dict, Any
 
+from flask_cors import CORS
+
 # Database imports (NEW)
 from database import db, init_db, User, Subscription, UsageTracking, Report
 from sqlalchemy import create_engine, text
@@ -44,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)
 
 # Configuration from environment variables
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', 'your-api-key-here')
