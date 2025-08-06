@@ -15,6 +15,14 @@ class AlphaSheetVisualBranding:
     PRODUCT_NAME = "AlphaSheet Intelligence™"
     DISPLAY_NAME = "AlphaSheet AI"  # As shown in logo
     LOGO_SYMBOL = "α"  # Alpha symbol from logo
+    TAGLINE = "Institutional-Grade Portfolio Intelligence"
+    
+    # Tier Names (required by app.py)
+    TIER_NAMES = {
+        'starter': 'Intelligence Starter',
+        'growth': 'Intelligence Growth',
+        'premium': 'Intelligence Premium'
+    }
     
     # Brand Typography - Inter as primary font
     FONT_FAMILY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif"
