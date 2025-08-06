@@ -424,6 +424,41 @@ class AlphaSheetVisualBranding:
         </body>
         </html>
         """
+    @staticmethod
+    def format_error_message(error_type: str = 'general', user_friendly: bool = True) -> str:
+        """
+        Format error messages with consistent branding
+        
+        Args:
+            error_type: Type of error
+            user_friendly: Return user-friendly message
+            
+        Returns:
+            Formatted error message
+        """
+        error_messages = {
+            'general': 'An error occurred while processing your request. Please try again.',
+            'invalid_request': 'Invalid request format. Please check your data.',
+            'rate_limit': 'You have reached your monthly report limit. Please upgrade your plan.',
+            'authentication': 'Authentication failed. Please check your credentials.',
+            'timeout': 'Request timed out. Please try again.',
+            'api_error': 'External API error. Please try again later.'
+        }
+        
+        if user_friendly:
+            return error_messages.get(error_type, error_messages['general'])
+        else:
+            return f"Error type: {error_type}"
+
+    @staticmethod
+    def get_email_subject(email_type: str = 'report', tier: str = 'starter') -> str:
+        """Get branded email subject"""
+        subjects = {
+            'report': f'AlphaSheet Intelligence™ - Portfolio Report',
+            'weekly_summary': f'AlphaSheet Intelligence™ - Weekly {tier.title()} Summary',
+            'alert': f'AlphaSheet Intelligence™ - Portfolio Alert'
+        }
+        return subjects.get(email_type, 'AlphaSheet Intelligence™ Update')
     
     @staticmethod
     def get_current_date() -> str:
