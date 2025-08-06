@@ -1,6 +1,7 @@
 """
 AlphaSheet Intelligence™ - Main API Application
 Complete integration with tier management, usage tracking, and branding
+Now with PostgreSQL database integration
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -8,6 +9,11 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, Any
+
+# Database imports (NEW)
+from database import db, init_db, User, Subscription, UsageTracking, Report
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 
 # Import our main components
 from portfolio_agent_saas import PortfolioAgentSaaS
@@ -43,8 +49,39 @@ app = Flask(__name__)
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', 'your-api-key-here')
 TIER_ENFORCEMENT = os.getenv('TIER_ENFORCEMENT', 'true').lower() == 'true'
 DEFAULT_TIER = os.getenv('DEFAULT_TIER', 'starter')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-# In-memory storage for demo (replace with database in production)
+# Database initialization (NEW)
+db_initialized = False
+db_status = "not_configured"
+db_error = None
+
+if DATABASE_URL:
+    try:
+        # Initialize database with the app
+        init_db(app, DATABASE_URL)
+        
+        # Create all tables if they don't exist
+        with app.app_context():
+            db.create_all()
+            
+            # Test database connection
+            db.session.execute(text('SELECT 1'))
+            db.session.commit()
+            
+            db_initialized = True
+            db_status = "connected"
+            logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        db_error = str(e)
+        db_status = f"error: {db_error[:100]}"  # Limit error message length
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.info("⚠️  App will continue without database functionality")
+else:
+    logger.warning("⚠️  DATABASE_URL not found - running without database")
+    db_status = "no_database_url"
+
+# In-memory storage for demo (fallback if database not available)
 USAGE_CACHE = {}
 
 @app.route('/')
@@ -77,7 +114,7 @@ def home():
             .logo {{
                 width: 80px;
                 height: 80px;
-                background: {AlphaSheetVisualBranding.GRADIENT_CSS};
+                background: {AlphaSheetVisualBranding.GRADIENT_CSS if AlphaSheetVisualBranding else 'linear-gradient(135deg, #4A90E2, #7B68EE)'};
                 border-radius: 16px;
                 display: flex;
                 align-items: center;
@@ -97,6 +134,15 @@ def home():
                 border-radius: 20px;
                 display: inline-block;
                 margin: 20px 0;
+            }}
+            .db-status {{
+                background: {'#d4edda' if db_initialized else '#f8d7da'};
+                color: {'#155724' if db_initialized else '#721c24'};
+                padding: 5px 15px;
+                border-radius: 15px;
+                display: inline-block;
+                margin: 10px 0;
+                font-size: 14px;
             }}
             .endpoints {{
                 text-align: left;
@@ -126,6 +172,7 @@ def home():
             <h1>AlphaSheet Intelligence™</h1>
             <p style="color: #666;">Institutional-Grade Portfolio Analysis API</p>
             <div class="status">✓ API Online</div>
+            <div class="db-status">{'✓ Database Connected' if db_initialized else '⚠️ Database Not Connected'}</div>
             
             <div class="endpoints">
                 <h3>Available Endpoints:</h3>
@@ -141,6 +188,12 @@ def home():
                 <div class="endpoint">
                     <strong>GET</strong> <code>/health</code> - Health check
                 </div>
+                <div class="endpoint">
+                    <strong>GET</strong> <code>/db-status</code> - Database status
+                </div>
+                <div class="endpoint">
+                    <strong>POST</strong> <code>/db-init</code> - Initialize database
+                </div>
             </div>
             
             <p style="color: #999; font-size: 12px; margin-top: 30px;">
@@ -153,6 +206,128 @@ def home():
     """
     return render_template_string(html)
 
+@app.route('/db-status', methods=['GET'])
+def database_status():
+    """Check database connection and table status"""
+    try:
+        status = {
+            'database_url_configured': bool(DATABASE_URL),
+            'database_initialized': db_initialized,
+            'connection_status': db_status,
+            'tables': {}
+        }
+        
+        if db_initialized:
+            try:
+                # Check each table
+                with app.app_context():
+                    # Check Users table
+                    user_count = db.session.query(User).count()
+                    status['tables']['users'] = {
+                        'exists': True,
+                        'row_count': user_count
+                    }
+                    
+                    # Check Subscriptions table
+                    sub_count = db.session.query(Subscription).count()
+                    status['tables']['subscriptions'] = {
+                        'exists': True,
+                        'row_count': sub_count
+                    }
+                    
+                    # Check UsageTracking table
+                    usage_count = db.session.query(UsageTracking).count()
+                    status['tables']['usage_tracking'] = {
+                        'exists': True,
+                        'row_count': usage_count
+                    }
+                    
+                    # Check Reports table
+                    report_count = db.session.query(Report).count()
+                    status['tables']['reports'] = {
+                        'exists': True,
+                        'row_count': report_count
+                    }
+                    
+                    status['database_healthy'] = True
+                    
+            except Exception as e:
+                status['database_healthy'] = False
+                status['error'] = str(e)
+        else:
+            status['database_healthy'] = False
+            if db_error:
+                status['error'] = db_error
+        
+        return jsonify({
+            'success': True,
+            'status': status,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/db-init', methods=['POST'])
+def initialize_database():
+    """Manual database initialization endpoint"""
+    try:
+        if not DATABASE_URL:
+            return jsonify({
+                'success': False,
+                'error': 'DATABASE_URL not configured'
+            }), 400
+        
+        # Try to initialize database
+        global db_initialized, db_status, db_error
+        
+        try:
+            # Re-initialize database
+            init_db(app, DATABASE_URL)
+            
+            # Create all tables
+            with app.app_context():
+                db.create_all()
+                
+                # Test connection
+                db.session.execute(text('SELECT 1'))
+                db.session.commit()
+                
+                # Get table counts
+                table_info = {
+                    'users': db.session.query(User).count(),
+                    'subscriptions': db.session.query(Subscription).count(),
+                    'usage_tracking': db.session.query(UsageTracking).count(),
+                    'reports': db.session.query(Report).count()
+                }
+                
+                db_initialized = True
+                db_status = "connected"
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Database initialized successfully',
+                    'tables_created': True,
+                    'table_counts': table_info
+                })
+                
+        except Exception as e:
+            db_error = str(e)
+            db_status = f"error: {db_error[:100]}"
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/analyze', methods=['POST'])
 def analyze_portfolio():
     """
@@ -164,7 +339,7 @@ def analyze_portfolio():
         if not data:
             return jsonify({
                 'success': False,
-                'error': AlphaSheetVisualBranding.format_error_message('invalid_request')
+                'error': AlphaSheetVisualBranding.format_error_message('invalid_request') if AlphaSheetVisualBranding else 'Invalid request'
             }), 400
         
         # Extract customer information
@@ -185,7 +360,7 @@ def analyze_portfolio():
                 usage_summary = tracker.get_usage_summary()
                 return jsonify({
                     'success': False,
-                    'error': AlphaSheetVisualBranding.format_error_message('rate_limit', user_friendly=True),
+                    'error': AlphaSheetVisualBranding.format_error_message('rate_limit', user_friendly=True) if AlphaSheetVisualBranding else 'Rate limit exceeded',
                     'usage': usage_summary,
                     'upgrade_benefits': tracker.get_tier_upgrade_benefits()
                 }), 429
@@ -199,7 +374,8 @@ def analyze_portfolio():
             }), 400
         
         # Initialize the appropriate agent based on tier
-        logger.info(f"Initializing {AlphaSheetVisualBranding.TIER_NAMES[customer_tier]} agent...")
+        tier_name = AlphaSheetVisualBranding.TIER_NAMES[customer_tier] if AlphaSheetVisualBranding else customer_tier
+        logger.info(f"Initializing {tier_name} agent...")
         
         # Base agent for all tiers
         agent = PortfolioAgentSaaS(
@@ -209,6 +385,7 @@ def analyze_portfolio():
         
         # For premium tier, also initialize enhanced analytics
         enhanced_results = None
+        enhanced_agent = None
         if customer_tier == 'premium':
             logger.info("Initializing enhanced analytics for Premium tier...")
             enhanced_agent = EnhancedPortfolioAgentSaaS(
@@ -234,6 +411,43 @@ def analyze_portfolio():
         # Record usage
         if TIER_ENFORCEMENT:
             tracker.record_report_generation()
+            
+            # If database is available, also record in database
+            if db_initialized:
+                try:
+                    with app.app_context():
+                        # Check if user exists, create if not
+                        user = db.session.query(User).filter_by(email=customer_email).first()
+                        if not user and customer_email:
+                            user = User(
+                                email=customer_email,
+                                tier=customer_tier,
+                                customer_id=customer_id
+                            )
+                            db.session.add(user)
+                            db.session.commit()
+                        
+                        # Record usage in database
+                        if user:
+                            usage_record = UsageTracking(
+                                user_id=user.id,
+                                endpoint='/analyze',
+                                tier=customer_tier
+                            )
+                            db.session.add(usage_record)
+                            
+                            # Save report metadata
+                            report = Report(
+                                user_id=user.id,
+                                report_type='portfolio_analysis',
+                                tier=customer_tier
+                            )
+                            db.session.add(report)
+                            db.session.commit()
+                            
+                except Exception as e:
+                    logger.error(f"Failed to record in database: {e}")
+                    # Continue even if database recording fails
         
         # Get usage summary
         usage_summary = tracker.get_usage_summary()
@@ -289,9 +503,10 @@ def analyze_portfolio():
         
     except Exception as e:
         logger.error(f"Error in analyze_portfolio: {str(e)}")
+        error_message = AlphaSheetVisualBranding.format_error_message('general', user_friendly=True) if AlphaSheetVisualBranding else 'An error occurred'
         return jsonify({
             'success': False,
-            'error': AlphaSheetVisualBranding.format_error_message('general', user_friendly=True),
+            'error': error_message,
             'details': str(e) if app.debug else None
         }), 500
 
@@ -311,16 +526,37 @@ def check_usage():
         tracker = UsageTracker(customer_id, tier)
         usage_summary = tracker.get_usage_summary()
         
+        # Add database usage info if available
+        if db_initialized:
+            try:
+                with app.app_context():
+                    # Try to get usage from database
+                    user = db.session.query(User).filter_by(customer_id=customer_id).first()
+                    if user:
+                        db_usage_count = db.session.query(UsageTracking).filter_by(
+                            user_id=user.id,
+                            tier=tier
+                        ).count()
+                        usage_summary['database_records'] = db_usage_count
+            except Exception as e:
+                logger.error(f"Failed to get database usage: {e}")
+        
         # Add upgrade suggestions if approaching limits
         should_upgrade = tracker.should_suggest_upgrade()
         if should_upgrade:
             usage_summary['upgrade_suggestion'] = True
             usage_summary['upgrade_benefits'] = tracker.get_tier_upgrade_benefits()
         
-        response = AlphaSheetVisualBranding.get_api_response_wrapper(
-            usage_summary,
-            tier
-        )
+        if AlphaSheetVisualBranding:
+            response = AlphaSheetVisualBranding.get_api_response_wrapper(
+                usage_summary,
+                tier
+            )
+        else:
+            response = {
+                'success': True,
+                'data': usage_summary
+            }
         
         return jsonify(response)
         
@@ -338,15 +574,16 @@ def get_tier_features():
         comparison = TierConfiguration.get_tier_comparison()
         
         # Add visual branding to the comparison
-        for tier_key in comparison:
-            tier_data = comparison[tier_key]
-            tier_data['brand_name'] = AlphaSheetVisualBranding.TIER_NAMES.get(tier_key, tier_key)
-            tier_data['color'] = AlphaSheetVisualBranding.TIER_COLORS[tier_key]['primary']
+        if AlphaSheetVisualBranding:
+            for tier_key in comparison:
+                tier_data = comparison[tier_key]
+                tier_data['brand_name'] = AlphaSheetVisualBranding.TIER_NAMES.get(tier_key, tier_key)
+                tier_data['color'] = AlphaSheetVisualBranding.TIER_COLORS[tier_key]['primary']
         
         response = {
             'success': True,
-            'product': AlphaSheetVisualBranding.PRODUCT_NAME,
-            'tagline': AlphaSheetVisualBranding.TAGLINE,
+            'product': AlphaSheetVisualBranding.PRODUCT_NAME if AlphaSheetVisualBranding else 'AlphaSheet Intelligence™',
+            'tagline': AlphaSheetVisualBranding.TAGLINE if AlphaSheetVisualBranding else 'Institutional-Grade Portfolio Intelligence',
             'tiers': comparison
         }
         
@@ -361,20 +598,46 @@ def get_tier_features():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with database status"""
     try:
         # Check if API key is configured
         api_key_configured = bool(ANTHROPIC_API_KEY and ANTHROPIC_API_KEY != 'your-api-key-here')
         
+        # Check database health
+        database_health = {
+            'configured': bool(DATABASE_URL),
+            'connected': db_initialized,
+            'status': db_status
+        }
+        
+        if db_initialized:
+            try:
+                with app.app_context():
+                    # Test query
+                    db.session.execute(text('SELECT 1'))
+                    database_health['responsive'] = True
+                    
+                    # Get table counts
+                    database_health['tables'] = {
+                        'users': db.session.query(User).count(),
+                        'subscriptions': db.session.query(Subscription).count(),
+                        'usage_tracking': db.session.query(UsageTracking).count(),
+                        'reports': db.session.query(Report).count()
+                    }
+            except Exception as e:
+                database_health['responsive'] = False
+                database_health['error'] = str(e)[:100]  # Limit error length
+        
         health_status = {
-            'status': 'healthy',
+            'status': 'healthy' if (api_key_configured and db_initialized) else 'degraded',
             'timestamp': datetime.now().isoformat(),
-            'product': AlphaSheetVisualBranding.PRODUCT_NAME,
+            'product': AlphaSheetVisualBranding.PRODUCT_NAME if AlphaSheetVisualBranding else 'AlphaSheet Intelligence™',
             'version': '1.0.0',
             'services': {
                 'api': 'online',
                 'anthropic_api': 'configured' if api_key_configured else 'not_configured',
-                'tier_enforcement': 'enabled' if TIER_ENFORCEMENT else 'disabled'
+                'tier_enforcement': 'enabled' if TIER_ENFORCEMENT else 'disabled',
+                'database': database_health
             }
         }
         
@@ -419,7 +682,10 @@ def send_weekly_email():
             is_html = True
         
         # Get branded subject
-        subject = AlphaSheetVisualBranding.get_email_subject('weekly_summary', customer_tier)
+        if AlphaSheetVisualBranding:
+            subject = AlphaSheetVisualBranding.get_email_subject('weekly_summary', customer_tier)
+        else:
+            subject = f"AlphaSheet Intelligence™ - Weekly {customer_tier.title()} Summary"
         
         # Send email
         success = scheduler.send_email(customer_email, subject, content, is_html)
@@ -443,15 +709,16 @@ def not_found(error):
     return jsonify({
         'success': False,
         'error': 'Endpoint not found',
-        'product': AlphaSheetVisualBranding.PRODUCT_NAME
+        'product': AlphaSheetVisualBranding.PRODUCT_NAME if AlphaSheetVisualBranding else 'AlphaSheet Intelligence™'
     }), 404
 
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors with branding"""
+    error_message = AlphaSheetVisualBranding.format_error_message('general', user_friendly=True) if AlphaSheetVisualBranding else 'An internal error occurred'
     return jsonify({
         'success': False,
-        'error': AlphaSheetVisualBranding.format_error_message('general', user_friendly=True)
+        'error': error_message
     }), 500
 
 if __name__ == '__main__':
@@ -459,6 +726,9 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     
     # Print startup message
+    db_status_emoji = "✅" if db_initialized else "⚠️"
+    db_status_text = "Connected" if db_initialized else "Not Connected"
+    
     print(f"""
     ╔══════════════════════════════════════════════╗
     ║                                              ║
@@ -466,6 +736,7 @@ if __name__ == '__main__':
     ║     Version 1.0.0                            ║
     ║                                              ║
     ║     Starting on port {port}...              ║
+    ║     Database: {db_status_emoji} {db_status_text:<20}      ║
     ║                                              ║
     ╚══════════════════════════════════════════════╝
     """)
