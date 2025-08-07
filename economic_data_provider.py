@@ -326,21 +326,28 @@ class EconomicDataProvider:
         return indicators
     
     def _fetch_global_indicators(self) -> Dict[str, Any]:
-        """Fetch global economic indicators"""
+        """Fetch global economic indicators with corrected FRED series"""
         global_data = {}
         
-        # Key global indicators to track
+        # CORRECTED FRED series IDs based on research
         global_series = {
-            'oil_wti': 'DCOILWTICO',        # WTI Oil Price
-            'oil_brent': 'DCOILBRENTEU',    # Brent Oil Price
-            'gold': 'GOLDAMGBD228NLBM',     # Gold Price
-            'copper': 'PCOPPUSDM',          # Copper Price
-            'baltic_dry': None,        # Baltic Dry Index (shipping)
+            'oil_wti': 'DCOILWTICO',           # WTI Oil Price
+            'oil_brent': 'DCOILBRENTEU',       # Brent Oil Price
+            # GOLD: Note - GOLDAMGBD228NLBM was removed from FRED in 2022
+            # Use alternative gold price series or skip
+            'gold': None,                       # Gold price not available via FRED
+            'copper': 'PCOPPUSDM',             # Copper Price
+            'baltic_dry': None,                # Baltic Dry not available in FRED
             'global_uncertainty': 'GEPUCURRENT', # Global Economic Policy Uncertainty
         }
         
         if self.fred_client:
             for indicator_name, series_id in global_series.items():
+                # Skip None series IDs
+                if series_id is None:
+                    logger.info(f"Skipping {indicator_name} - not available in FRED")
+                    continue
+                    
                 try:
                     data = self.fred_client.get_series_latest_release(series_id)
                     if data is not None and len(data) > 0:
@@ -351,7 +358,30 @@ class EconomicDataProvider:
                 except Exception as e:
                     logger.warning(f"Failed to fetch global indicator {indicator_name}: {e}")
         
-        # Add major market indices via yfinance
+        # ALTERNATIVE: Fetch gold and Baltic Dry via yfinance
+        alternative_tickers = {
+            'gold': 'GC=F',        # Gold Futures
+            'baltic_dry': None,    # No reliable ticker for Baltic Dry Index
+        }
+        
+        for indicator_name, ticker in alternative_tickers.items():
+            if ticker:
+                try:
+                    stock = yf.Ticker(ticker)
+                    hist = stock.history(period='5d')
+                    if not hist.empty:
+                        latest_price = float(hist['Close'].iloc[-1])
+                        prev_price = float(hist['Close'].iloc[-2]) if len(hist) > 1 else latest_price
+                        
+                        global_data[indicator_name] = {
+                            'value': latest_price,
+                            'day_change': ((latest_price - prev_price) / prev_price * 100) if prev_price != 0 else 0,
+                            'source': 'yfinance'
+                        }
+                except Exception as e:
+                    logger.info(f"Could not fetch {indicator_name} from yfinance: {e}")
+        
+        # Add major market indices via yfinance (keep existing code)
         market_indices = {
             'sp500': '^GSPC',
             'nasdaq': '^IXIC',
@@ -380,6 +410,7 @@ class EconomicDataProvider:
                 logger.warning(f"Failed to fetch {index_name}: {e}")
         
         return global_data
+
     
     def _fetch_crypto_prices(self, tickers: List[str]) -> Dict[str, Any]:
         """Fetch cryptocurrency prices from yfinance"""
