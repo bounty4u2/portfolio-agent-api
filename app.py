@@ -348,9 +348,35 @@ def analyze_portfolio():
         # Extract customer information
         customer_info = data.get('customer_info', {})
         customer_id = customer_info.get('customer_id', 'anonymous')
-        customer_tier = customer_info.get('tier', DEFAULT_TIER).lower()
         region = customer_info.get('region', 'US')
         customer_email = customer_info.get('email', '')
+        
+        # FIX: Fetch tier from database FIRST, then fall back to request data
+        customer_tier = DEFAULT_TIER.lower()  # Start with default
+        
+        # Try to get tier from database
+        if db_initialized and customer_id != 'anonymous':
+            try:
+                from sqlalchemy import text
+                result = db.session.execute(
+                    text("SELECT tier FROM customers_legacy WHERE customer_id = :cid"),
+                    {"cid": customer_id}
+                ).fetchone()
+                
+                if result and result[0]:
+                    customer_tier = result[0].lower()
+                    logger.info(f"Found tier '{customer_tier}' in database for {customer_id}")
+                else:
+                    # Not in database, check request data
+                    customer_tier = customer_info.get('tier', DEFAULT_TIER).lower()
+                    logger.info(f"Customer {customer_id} not in database, using tier from request: {customer_tier}")
+            except Exception as e:
+                logger.warning(f"Could not fetch tier from database: {e}")
+                # Fall back to request data
+                customer_tier = customer_info.get('tier', DEFAULT_TIER).lower()
+        else:
+            # Database not available or anonymous user, use request data
+            customer_tier = customer_info.get('tier', DEFAULT_TIER).lower()
         
         logger.info(f"Analysis request from {customer_id} (Tier: {customer_tier})")
         
@@ -455,13 +481,25 @@ def analyze_portfolio():
                             )
                             db.session.add(usage_record)
                             
-                            # Save report metadata
-                            report = Report(
-                                user_id=user.id,
-                                report_type='portfolio_analysis',
-                                tier=customer_tier
-                            )
-                            db.session.add(report)
+                            # FIX: Extract report_id from results and save properly
+                            report_id = None
+                            if 'metadata' in results:
+                                report_id = results['metadata'].get('report_id')
+                            elif 'analysis' in results and 'metadata' in results['analysis']:
+                                report_id = results['analysis']['metadata'].get('report_id')
+                            
+                            # Only save report if we have an ID
+                            if report_id:
+                                report = Report(
+                                    report_id=report_id,  # Add the report_id
+                                    user_id=user.id,
+                                    report_type='portfolio_analysis',
+                                    tier=customer_tier
+                                )
+                                db.session.add(report)
+                            else:
+                                logger.warning("No report_id found in results, skipping report save")
+                            
                             db.session.commit()
                             
                 except Exception as e:
