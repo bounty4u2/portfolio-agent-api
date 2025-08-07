@@ -399,12 +399,29 @@ def analyze_portfolio():
         
         # Perform analysis
         logger.info("Starting portfolio analysis...")
-        results = agent.analyze_portfolio(data)
-        
+
+        # Extract the actual data needed
+        positions = portfolio.get('positions', [])
+        goals = data.get('goals')
+        preferences = data.get('preferences')
+
+        # Call with proper parameters
+        results = agent.analyze_portfolio(
+            positions=positions,
+            customer_id=customer_id,  # This was missing!
+            goals=goals,
+            preferences=preferences
+        )
+
         # Add enhanced analytics for premium tier
         if customer_tier == 'premium' and enhanced_agent:
             logger.info("Adding enhanced analytics...")
-            enhanced_results = enhanced_agent.analyze_portfolio_enhanced(data)
+            enhanced_results = enhanced_agent.analyze_portfolio_enhanced(
+                positions=positions,
+                customer_id=customer_id,
+                goals=goals,
+                preferences=preferences
+            )
             results['enhanced_analytics'] = enhanced_results
         
         # Generate HTML report with branding
