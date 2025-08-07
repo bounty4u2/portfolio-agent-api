@@ -307,6 +307,66 @@ class PortfolioAgentSaaS:
                 'message': 'Portfolio analysis failed'
             }
 
+
+    def _get_customer_info(self, customer_id: str) -> Dict[str, Any]:
+        """
+        Get customer information from database or create default
+        
+        Args:
+            customer_id: Customer identifier
+            
+        Returns:
+            Dictionary with customer information
+        """
+        customer_info = {
+            'customer_id': customer_id,
+            'name': 'Valued Customer',  # Default name
+            'region': 'US',
+            'base_currency': 'USD',
+            'tier': self.tier
+        }
+        
+        # Try to get from database if available
+        try:
+            import psycopg2
+            db_url = os.getenv('DATABASE_URL')
+            
+            if db_url:
+                conn = psycopg2.connect(db_url)
+                cursor = conn.cursor()
+                
+                # Try the customers_legacy table first
+                cursor.execute("""
+                    SELECT customer_id, email, tier, region, base_currency
+                    FROM customers_legacy
+                    WHERE customer_id = %s
+                """, (customer_id,))
+                
+                result = cursor.fetchone()
+                
+                if result:
+                    customer_info.update({
+                        'customer_id': result[0],
+                        'email': result[1],
+                        'tier': result[2] or self.tier,
+                        'region': result[3] or 'US',
+                        'base_currency': result[4] or 'USD',
+                        'name': result[1].split('@')[0].title() if result[1] else 'Valued Customer'
+                    })
+                    logger.info(f"Found customer {customer_id} in database")
+                else:
+                    logger.info(f"Customer {customer_id} not found in database, using defaults")
+                
+                cursor.close()
+                conn.close()
+                
+        except Exception as e:
+            logger.warning(f"Could not fetch customer from database: {e}")
+            # Use defaults set above
+        
+        return customer_info
+
+
     def _save_report_to_database(self, report_id: str, customer_id: str, 
                                 analysis_results: Dict, html_report: str) -> bool:
         """
