@@ -335,7 +335,7 @@ class EconomicDataProvider:
             'oil_brent': 'DCOILBRENTEU',    # Brent Oil Price
             'gold': 'GOLDAMGBD228NLBM',     # Gold Price
             'copper': 'PCOPPUSDM',          # Copper Price
-            'baltic_dry': 'BALTDRY',        # Baltic Dry Index (shipping)
+            'baltic_dry': None,        # Baltic Dry Index (shipping)
             'global_uncertainty': 'GEPUCURRENT', # Global Economic Policy Uncertainty
         }
         

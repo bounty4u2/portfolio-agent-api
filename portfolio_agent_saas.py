@@ -2135,14 +2135,15 @@ class PortfolioAgentSaaS:
         return metadata
     
     def generate_html_report(self, analysis_results: Dict[str, Any]) -> str:
-        """Generate HTML report with fixed data paths and single disclaimer"""
+        """Generate HTML report with proper header call and report ID in footer"""
         
-        # Extract data FROM WRAPPED RESULTS (compliance wrapper adds sections)
+        # Extract metadata first
         metadata = analysis_results.get('metadata', {})
+        report_id = metadata.get('report_id', 'RPT-2025-00-0000')
+        generated_at = metadata.get('generated_at', datetime.utcnow().isoformat())
         
-        # Check if data is wrapped in 'sections'
+        # Extract data FROM WRAPPED RESULTS
         if 'sections' in analysis_results:
-            # Data is wrapped by compliance wrapper
             sections = analysis_results['sections']
             summary = sections.get('portfolio_summary', {}).get('content', {})
             performance = sections.get('performance_analysis', {}).get('content', {})
@@ -2151,16 +2152,10 @@ class PortfolioAgentSaaS:
             monte_carlo = sections.get('monte_carlo_simulation', {}).get('content', {})
             rebalancing = sections.get('rebalancing_suggestions', {}).get('content', {})
             tax = sections.get('tax_optimization', {}).get('content', {})
-            currencies = sections.get('currency_analysis', {}).get('content', {})
-            scenarios = sections.get('scenario_analysis', {}).get('content', {})
-            regime = sections.get('market_regime', {}).get('content', {})
-            signals = sections.get('technical_signals', {}).get('content', {})
-            income = sections.get('income_opportunities', {}).get('content', {})
             ai_insights = sections.get('ai_insights', {}).get('content', {})
             economic_context = sections.get('economic_context', {}).get('content', {})
             crypto_analysis = sections.get('crypto_analysis', {}).get('content', {})
         else:
-            # Data is not wrapped (direct access)
             summary = analysis_results.get('portfolio_summary', {})
             performance = analysis_results.get('performance_analysis', {})
             risk = analysis_results.get('risk_analysis', {})
@@ -2168,11 +2163,6 @@ class PortfolioAgentSaaS:
             monte_carlo = analysis_results.get('monte_carlo_simulation', {})
             rebalancing = analysis_results.get('rebalancing_suggestions', {})
             tax = analysis_results.get('tax_optimization', {})
-            currencies = analysis_results.get('currency_analysis', {})
-            scenarios = analysis_results.get('scenario_analysis', {})
-            regime = analysis_results.get('market_regime', {})
-            signals = analysis_results.get('technical_signals', {})
-            income = analysis_results.get('income_opportunities', {})
             ai_insights = analysis_results.get('ai_insights', {})
             economic_context = analysis_results.get('economic_context', {})
             crypto_analysis = analysis_results.get('crypto_analysis', {})
@@ -2184,40 +2174,81 @@ class PortfolioAgentSaaS:
         customer_info = analysis_results.get('customer_info', {})
         customer_name = customer_info.get('name', 'Valued Customer')
         
-        # GET BRANDED HEADER
+        # GET BRANDED HEADER - WITHOUT report_id parameter (FIX)
         header = AlphaSheetVisualBranding.get_report_header_html(
             tier=self.tier,
-            customer_name=customer_name,
-            report_id=metadata.get('report_id', '')  # Add report ID to header
+            customer_name=customer_name
+            # REMOVED: report_id parameter
         )
         
-        # SINGLE COMPREHENSIVE DISCLAIMER
-        disclaimer = """
-        <div class="card" style="background: #f8f9fa; border-left: 4px solid #6c757d;">
-            <h3 style="color: #495057; margin-bottom: 15px;">Important Disclaimer</h3>
-            <p style="color: #6c757d; line-height: 1.6;">
-                This report is provided for educational and informational purposes only and does not constitute 
-                personalized investment advice, a recommendation, or a solicitation to buy or sell any securities. 
-                The analysis presented is based on historical data and current market conditions, which are subject 
-                to change. Past performance does not guarantee future results. All investments carry risk, including 
-                potential loss of principal. Tax implications vary by individual circumstances and jurisdiction. 
-                Consult with qualified financial, tax, and legal advisors before making any investment decisions. 
-                AlphaSheet Intelligence™ and its affiliates are not registered investment advisors and do not 
-                provide personalized financial advice.
-            </p>
-        </div>
-        """
-        
-        # GET BRANDED FOOTER (without additional disclaimers)
+        # GET BRANDED FOOTER
         footer = AlphaSheetVisualBranding.get_footer_html()
+        
+        # ENHANCED FOOTER WITH REPORT ID
+        enhanced_footer = f"""
+        <!-- Report Information Footer -->
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+                    padding: 20px; margin-top: 40px; border-top: 2px solid #dee2e6;">
+            <div style="max-width: 1400px; margin: 0 auto; text-align: center;">
+                <div style="display: flex; justify-content: space-between; align-items: center; 
+                            flex-wrap: wrap; margin-bottom: 20px; padding: 0 20px;">
+                    <div style="text-align: left;">
+                        <p style="margin: 5px 0; color: #6c757d; font-size: 14px;">
+                            <strong>Report ID:</strong> {report_id}
+                        </p>
+                        <p style="margin: 5px 0; color: #6c757d; font-size: 14px;">
+                            <strong>Generated:</strong> {datetime.fromisoformat(generated_at.replace('Z', '+00:00')).strftime('%B %d, %Y at %I:%M %p UTC')}
+                        </p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="margin: 5px 0; color: #495057; font-size: 16px; font-weight: 600;">
+                            AlphaSheet Intelligence™ {self.tier.upper()} Edition
+                        </p>
+                        <p style="margin: 5px 0; color: #6c757d; font-size: 12px;">
+                            Powered by Claude AI & Market Data APIs
+                        </p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin: 5px 0; color: #6c757d; font-size: 14px;">
+                            <strong>Customer:</strong> {customer_name}
+                        </p>
+                        <p style="margin: 5px 0; color: #6c757d; font-size: 14px;">
+                            <strong>Region:</strong> {metadata.get('region', 'US')}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Single Comprehensive Disclaimer -->
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; 
+                            border-left: 4px solid #6c757d;">
+                    <p style="color: #6c757d; font-size: 12px; line-height: 1.6; text-align: left;">
+                        <strong>Important Disclaimer:</strong> This report is provided for educational and informational purposes only and does not constitute 
+                        personalized investment advice, a recommendation, or a solicitation to buy or sell any securities. 
+                        The analysis presented is based on historical data and current market conditions, which are subject 
+                        to change. Past performance does not guarantee future results. All investments carry risk, including 
+                        potential loss of principal. Tax implications vary by individual circumstances and jurisdiction. 
+                        Consult with qualified financial, tax, and legal advisors before making any investment decisions. 
+                        AlphaSheet Intelligence™ and its affiliates are not registered investment advisors.
+                    </p>
+                </div>
+                
+                <p style="font-size: 11px; color: #adb5bd; margin-top: 15px;">
+                    © 2024-2025 AlphaSheet. All rights reserved. AlphaSheet Intelligence™ is a trademark of AlphaSheet.
+                </p>
+            </div>
+        </div>
+        
+        {footer}
+        """
 
+        # COMPLETE HTML
         html = f"""
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>AlphaSheet Intelligence™ - {metadata.get('report_id', '')}</title>
+            <title>AlphaSheet Report - {report_id}</title>
             
             <style>
                 /* Modern CSS Variables */
@@ -2255,7 +2286,7 @@ class PortfolioAgentSaaS:
                     padding: 20px;
                 }}
                 
-                /* KPI Cards Grid */
+                /* KPI Cards */
                 .kpi-grid {{
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -2299,7 +2330,7 @@ class PortfolioAgentSaaS:
                 .negative {{ color: var(--danger); }}
                 .neutral {{ color: var(--gray); }}
                 
-                /* Content Cards */
+                /* Cards */
                 .card {{
                     background: var(--white);
                     border-radius: 12px;
@@ -2346,7 +2377,6 @@ class PortfolioAgentSaaS:
                     border-bottom: 1px solid #e5e7eb;
                 }}
                 
-                /* Responsive */
                 @media (max-width: 768px) {{
                     .container {{ padding: 10px; }}
                     .kpi-grid {{ grid-template-columns: 1fr; }}
@@ -2357,7 +2387,7 @@ class PortfolioAgentSaaS:
             {header}
 
             <div class="container">
-                <!-- KPI Dashboard with FIXED VALUES -->
+                <!-- KPI Dashboard -->
                 <div class="kpi-grid">
                     <div class="kpi-card">
                         <div class="kpi-label">Portfolio Value</div>
@@ -2400,10 +2430,10 @@ class PortfolioAgentSaaS:
                     </div>
                 </div>
                 
-                <!-- Crypto Analysis Card (if available) -->
+                <!-- Crypto Analysis Card -->
                 {self._generate_crypto_card(crypto_analysis, base_currency) if crypto_analysis else ''}
                 
-                <!-- AI Insights Card (if available) -->
+                <!-- AI Insights Card -->
                 {self._generate_ai_insights_card(ai_insights) if ai_insights and not ai_insights.get('error') else ''}
                 
                 <!-- Portfolio Holdings -->
@@ -2417,19 +2447,9 @@ class PortfolioAgentSaaS:
                     
                     {self._generate_holdings_table(summary.get('positions', [])[:10], base_currency)}
                 </div>
-                
-                <!-- Additional Analysis Cards (based on tier) -->
-                {self._generate_goals_card(goals, monte_carlo, base_currency) if self.has_feature('goal_tracking') and goals else ''}
-                {self._generate_rebalancing_card(rebalancing, base_currency) if self.has_feature('rebalancing') and rebalancing else ''}
-                {self._generate_tax_card(tax, base_currency) if self.has_feature('tax_optimization') and tax else ''}
-                {self._generate_regime_card(regime) if self.has_feature('market_regime') and regime else ''}
-                {self._generate_signals_card(signals) if self.has_feature('technical_analysis') and signals else ''}
-                
-                <!-- Single Comprehensive Disclaimer -->
-                {disclaimer}
             </div>
 
-            {footer}
+            {enhanced_footer}
         </body>
         </html>
         """
