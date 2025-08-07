@@ -50,20 +50,21 @@ from visual_branding import AlphaSheetVisualBranding
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+MARKET_DATA_CONFIG = {
+    'yfinance_version': '0.2.65',  # Latest as of August 2025
+    'alpha_vantage_key': os.getenv('ALPHA_VANTAGE_API_KEY'),  # Set in environment
+    'finnhub_key': os.getenv('FINNHUB_API_KEY'),  # Optional backup
+    'retry_attempts': 3,
+    'retry_delay': 1,  # seconds
+    'cache_duration_minutes': 5
+}
 
 class PortfolioAgentSaaS:
     """
     Complete Portfolio Intelligence Engine with all tier features
     Supports Starter ($19), Growth ($39), and Premium ($79) tiers
     """
-    MARKET_DATA_CONFIG = {
-        'yfinance_version': '0.2.65',  # Latest as of August 2025
-        'alpha_vantage_key': os.getenv('ALPHA_VANTAGE_API_KEY'),  # Set in environment
-        'finnhub_key': os.getenv('FINNHUB_API_KEY'),  # Optional backup
-        'retry_attempts': 3,
-        'retry_delay': 1,  # seconds
-        'cache_duration_minutes': 5
-    }
+
     # Tier feature mappings with latest Claude 4 models
     TIER_FEATURES = {
         'starter': {
