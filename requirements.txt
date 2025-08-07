@@ -4,7 +4,7 @@ flask-cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 
 # Data analysis and finance
-yfinance==0.2.40
+yfinance==0.2.65
 pandas==2.2.2
 numpy==1.26.4
 scipy==1.13.1
