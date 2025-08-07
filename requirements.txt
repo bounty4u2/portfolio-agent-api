@@ -17,7 +17,7 @@ seaborn==0.13.2
 anthropic==0.45.2
 
 # Database - KEEP 1.4.x for compatibility
-SQLAlchemy==1.4.52
+SQLAlchemy==2.0.31
 psycopg2-binary==2.9.9
 
 # Utilities
