@@ -399,29 +399,28 @@ def analyze_portfolio():
         
         # Perform analysis
         logger.info("Starting portfolio analysis...")
-
-        # Extract the actual data needed
-        positions = portfolio.get('positions', [])
-        goals = data.get('goals')
-        preferences = data.get('preferences')
-
-        # Call with proper parameters
-        results = agent.analyze_portfolio(
-            positions=positions,
-            customer_id=customer_id,  # This was missing!
-            goals=goals,
-            preferences=preferences
-        )
-
+        
+        # BUILD THE DATA IN THE FORMAT THE ORIGINAL METHOD EXPECTS
+        analysis_data = {
+            'customer_info': {
+                'customer_id': customer_id,
+                'tier': customer_tier,
+                'region': region,
+                'email': customer_email,
+                'base_currency': 'USD'
+            },
+            'portfolio': portfolio,  # This already has 'positions' inside it
+            'goals': data.get('goals', []),
+            'settings': data.get('preferences', {})
+        }
+        
+        # Call with the ORIGINAL expected format
+        results = agent.analyze_portfolio(analysis_data)
+        
         # Add enhanced analytics for premium tier
         if customer_tier == 'premium' and enhanced_agent:
             logger.info("Adding enhanced analytics...")
-            enhanced_results = enhanced_agent.analyze_portfolio_enhanced(
-                positions=positions,
-                customer_id=customer_id,
-                goals=goals,
-                preferences=preferences
-            )
+            enhanced_results = enhanced_agent.analyze_portfolio_enhanced(analysis_data)
             results['enhanced_analytics'] = enhanced_results
         
         # Generate HTML report with branding

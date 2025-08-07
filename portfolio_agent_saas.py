@@ -153,160 +153,108 @@ class PortfolioAgentSaaS:
         """Check if customer tier has access to feature"""
         return feature in self.tier_config['features']
     
-    def analyze_portfolio(self, positions: List[Dict[str, Any]], 
-                        customer_id: str,
-                        goals: Optional[Dict[str, Any]] = None,
-                        preferences: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    
+    def analyze_portfolio(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main portfolio analysis method with database save fix
+        Main entry point for portfolio analysis with tier-based features
+        ORIGINAL VERSION WITH FIXES
         """
         try:
-            # Start timing
-            analysis_start = time.time()
+            # Initialize compliance for region
+            region = customer_data.get('customer_info', {}).get('region', 'US')
+            self.compliance_wrapper = ComplianceWrapper(region)
             
-            # Get customer info
-            customer_info = self._get_customer_info(customer_id)
-            if not customer_info:
-                raise ValueError(f"Customer {customer_id} not found")
+            # Extract data (ORIGINAL)
+            customer_info = customer_data.get('customer_info', {})
+            portfolio = customer_data.get('portfolio', {})
+            goals = customer_data.get('goals', [])
+            settings = customer_data.get('settings', {})
             
-            # Generate metadata FIRST (includes report_id)
+            # FIX: Ensure customer_id exists
+            if 'customer_id' not in customer_info:
+                customer_info['customer_id'] = customer_data.get('customer_id', 'anonymous')
+            
+            # FIX: Generate metadata FIRST (includes report_id)
             metadata = self._generate_metadata(customer_info)
-            report_id = metadata.get('report_id')  # This is now guaranteed to exist
+            report_id = metadata.get('report_id')
+            logger.info(f"Generated report ID: {report_id} for customer: {customer_info.get('customer_id')}")
             
-            logger.info(f"Starting portfolio analysis for customer {customer_id}, report ID: {report_id}")
+            # Validate tier limits (ORIGINAL)
+            if not self._validate_tier_limits(customer_data):
+                raise ValueError(f"Tier limits exceeded for {self.tier}")
             
-            # Initialize tracking variables
-            analysis_complete = False
-            report_saved = False
+            # Fetch market data (ORIGINAL)
+            positions = portfolio.get('positions', [])
+            market_data = self._fetch_comprehensive_market_data(positions)
             
-            try:
-                # Fetch market data (might fail)
-                market_data = self._fetch_market_data_batch(positions)
-                
-                # Perform analysis steps
-                portfolio_summary = self._analyze_positions(positions, market_data)
-                risk_analysis = self._perform_risk_analysis(portfolio_summary, market_data)
-                performance_analysis = self._analyze_performance(portfolio_summary, market_data)
-                
-                # Get economic context
-                economic_context = self.economic_provider.get_economic_data(
-                    region=customer_info.get('region', 'US'),
-                    customer_tier=self.tier
-                )
-                
-                # Get crypto analysis
-                crypto_analysis = self.economic_provider.get_crypto_data(
-                    customer_tier=self.tier,
-                    portfolio_value=portfolio_summary.get('total_value', 0)
-                )
-                
-                # AI insights (if available)
-                ai_insights = {}
-                if self.anthropic_client and self.tier_config.get('ai_insights'):
-                    ai_insights = self._generate_ai_insights(
-                        portfolio_summary, risk_analysis, performance_analysis,
-                        economic_context, self.tier
-                    )
-                
-                # Additional analyses based on tier
-                monte_carlo = {}
-                if self.tier_config.get('monte_carlo'):
-                    monte_carlo = self._run_monte_carlo_simulation(portfolio_summary, goals)
-                
-                rebalancing = {}
-                if self.tier_config.get('rebalancing'):
-                    rebalancing = self._generate_rebalancing_suggestions(
-                        portfolio_summary, preferences
-                    )
-                
-                # Mark analysis as complete
-                analysis_complete = True
-                
-                # Compile results with compliance wrapper
-                analysis_results = self._compile_analysis_results(
-                    portfolio_summary=portfolio_summary,
-                    risk_analysis=risk_analysis,
-                    performance_analysis=performance_analysis,
-                    economic_context=economic_context,
-                    crypto_analysis=crypto_analysis,
-                    ai_insights=ai_insights,
-                    monte_carlo_simulation=monte_carlo,
-                    rebalancing_suggestions=rebalancing,
-                    metadata=metadata,
-                    customer_info=customer_info
-                )
-                
-                # Generate HTML report
-                html_report = self.generate_html_report(analysis_results)
-                
-                # SINGLE DATABASE SAVE - Only save AFTER everything is ready
-                if analysis_complete and report_id:
-                    try:
-                        save_success = self._save_report_to_database(
-                            report_id=report_id,
-                            customer_id=customer_id,
-                            analysis_results=analysis_results,
-                            html_report=html_report
-                        )
-                        
-                        if save_success:
-                            report_saved = True
-                            logger.info(f"Report {report_id} saved to database successfully")
-                        else:
-                            logger.warning(f"Failed to save report {report_id} to database")
-                            
-                    except Exception as db_error:
-                        logger.error(f"Database save error for report {report_id}: {db_error}")
-                        # Continue - report is still generated even if save fails
-                
-                # Update usage tracking
-                self._update_usage_tracking(customer_id)
-                
-                # Calculate timing
-                analysis_duration = time.time() - analysis_start
-                logger.info(f"Analysis complete for {customer_id} in {analysis_duration:.2f}s")
-                
-                # Return complete results
+            # Handle case where no market data is available (ORIGINAL)
+            if not market_data:
+                logger.warning("No market data available for any positions")
                 return {
-                    'success': True,
-                    'data': {
-                        'analysis': analysis_results,
-                        'html_report': html_report,
-                        'usage': self._get_usage_info(customer_id)
-                    },
-                    'metadata': {
-                        'tier': f"Intelligence {self.tier.title()}",
-                        'version': '1.0.0',
-                        'timestamp': datetime.utcnow().isoformat(),
-                        'powered_by': 'AlphaSheet Intelligence™',
-                        'product_suite': 'AlphaSheet AI™'
+                    'metadata': metadata,  # Use the generated metadata
+                    'error': 'Unable to fetch market data. Please try again later.',
+                    'portfolio_summary': {
+                        'total_value': 0,
+                        'positions': [],
+                        'message': 'Market data temporarily unavailable'
                     }
                 }
-                
-            except Exception as analysis_error:
-                logger.error(f"Analysis error for {customer_id}: {analysis_error}")
-                
-                # If we have a report_id but analysis failed, don't try to save
-                # This prevents the NULL report_id error
-                
-                return {
-                    'success': False,
-                    'error': str(analysis_error),
-                    'partial_results': {
-                        'report_id': report_id,
-                        'customer_id': customer_id,
-                        'error_stage': 'analysis' if not analysis_complete else 'save'
-                    }
+            
+            # Calculate base values (ORIGINAL)
+            base_currency = customer_info.get('base_currency', 'USD')
+            portfolio_values = self._calculate_portfolio_values(
+                positions, market_data, base_currency
+            )
+            
+            # Build analysis based on tier (ORIGINAL)
+            analysis_results = {
+                'metadata': metadata,  # Use the generated metadata with report_id
+                'portfolio_summary': portfolio_values,
+                'economic_context': self.economic_provider.get_economic_data(region, self.tier),
+                'crypto_analysis': self.economic_provider.get_crypto_data(self.tier, portfolio_values['total_value'])
+            }
+            
+            # Add tier-appropriate features (ORIGINAL)
+            analysis_results.update(self._perform_tier_analysis(
+                portfolio_values, market_data, customer_data
+            ))
+            
+            # Apply compliance wrapper (ORIGINAL)
+            compliant_results = self.compliance_wrapper.wrap_report(analysis_results)
+            
+            # Generate visualizations if premium (ORIGINAL)
+            if self.has_feature('advanced_visualizations'):
+                compliant_results['visualizations'] = self._generate_visualizations(
+                    portfolio_values, analysis_results
+                )
+            
+            # Track usage (ORIGINAL)
+            self.analysis_count += 1
+            self.last_analysis_time = datetime.utcnow()
+            
+            # FIX: Ensure we have sections structure for compatibility
+            if 'sections' not in compliant_results:
+                compliant_results['sections'] = {
+                    'portfolio_summary': {'content': portfolio_values},
+                    'economic_context': {'content': analysis_results.get('economic_context', {})},
+                    'crypto_analysis': {'content': analysis_results.get('crypto_analysis', {})},
+                    'metadata': metadata
                 }
-                
+            
+            return compliant_results
+            
         except Exception as e:
-            logger.error(f"Fatal error in analyze_portfolio: {e}")
+            logger.error(f"Portfolio analysis failed: {e}")
+            # Return error with report_id so database doesn't fail
             return {
                 'success': False,
                 'error': str(e),
-                'message': 'Portfolio analysis failed'
+                'metadata': {
+                    'report_id': f"RPT-ERROR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                    'customer_id': customer_data.get('customer_info', {}).get('customer_id', 'unknown'),
+                    'error_time': datetime.utcnow().isoformat()
+                }
             }
-
 
     def _get_customer_info(self, customer_id: str) -> Dict[str, Any]:
         """
